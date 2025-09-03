@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QR Code Generator</title>
+<style>
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #e0eafc;
+  margin: 0;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+.container {
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  border: 2px solid #000; /* Black border */
+  text-align: center;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+header h1 {
+  font-size: 1.5rem;
+  margin: 0;
+  color: #333;
+}
+#themeToggle {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+#themeToggle:hover {
+  background: #0056b3;
+  transform: scale(1.1);
+}
+input[type="text"] {
+  width: 100%;
+  margin: 12px auto;
+  padding: 14px;
+  font-size: 1rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  text-align: center;
+  box-sizing: border-box;
+}
+.colors {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 15px;
+}
+.colors label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 14px;
+  color: #555;
+}
+.colors input[type="color"] {
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.colors input[type="color"]:hover {
+  transform: scale(1.1);
+}
+.btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: center;
+}
+.btns button {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+  padding: 12px;
+  border-radius: 6px;
+  min-width: 110px;
+  font-size: 15px;
+}
+.btns button:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+}
+.btns button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#qr-code {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+#historyList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 80px);
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: center;
+}
+#historyList img {
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+#historyList img:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.dark {
+  background: #121212;
+  color: #fff;
+}
+.dark .container {
+  background: #1e1e1e;
+  border: 2px solid #444;
+}
+.dark input,
+.dark button {
+  background: #333;
+  color: #fff;
+  border: 1px solid #444;
+}
+.dark #themeToggle {
+  background: #ff9800;
+}
+.dark #themeToggle:hover {
+  background: #e68a00;
+}
+@media (max-width: 500px) {
+  .btns button {
+    min-width: 100%;
+  }
+  #historyList {
+    grid-template-columns: repeat(auto-fill, 70px);
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>QR Code Generator</h1>
+    <button id="themeToggle">🌙</button>
+  </header>
+
+  <input id="text" type="text" placeholder="Enter text or URL">
+
+  <p style="margin-top:10px;font-size:14px;">Choose QR Code Colors:</p>
+  <div class="colors">
+    <label>Dark<input type="color" id="darkColor" value="#000000"></label>
+    <label>Light<input type="color" id="lightColor" value="#ffffff"></label>
+  </div>
+
+  <div class="btns">
+    <button id="generateBtn">Generate</button>
+    <button id="downloadBtn" disabled>Download</button>
+    <button id="saveHistoryBtn" disabled>Save</button>
+    <button id="clearBtn">Clear</button>
+    <button id="clearHistoryBtn">Clear History</button>
+  </div>
+
+  <div id="qr-code"></div>
+  <h3 style="margin-top:15px;">History</h3>
+  <div id="historyList"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const textEl=document.getElementById('text'),
+darkEl=document.getElementById('darkColor'),
+lightEl=document.getElementById('lightColor'),
+qrWrap=document.getElementById('qr-code'),
+downloadBtn=document.getElementById('downloadBtn'),
+saveHistoryBtn=document.getElementById('saveHistoryBtn'),
+historyList=document.getElementById('historyList'),
+themeToggle=document.getElementById('themeToggle');
+let latestCanvas=null,latestText='';
+
+function genQR(content){
+  qrWrap.innerHTML='';
+  let qr=new QRCode(qrWrap,{text:content,width:256,height:256,colorDark:darkEl.value,colorLight:lightEl.value,correctLevel:QRCode.CorrectLevel.H});
+  setTimeout(()=>{
+    let cnv=qrWrap.querySelector('canvas')||qrWrap.querySelector('img');
+    if(cnv.tagName==='IMG'){let c=document.createElement('canvas');c.width=256;c.height=256;c.getContext('2d').drawImage(cnv,0,0);cnv=c;}
+    latestCanvas=cnv;
+    downloadBtn.disabled=false;
+    saveHistoryBtn.disabled=false;
+  },300);
+}
+
+function addHist(txt,data){
+  let h=JSON.parse(localStorage.hist||'[]');
+  h.unshift({txt,data});
+  localStorage.hist=JSON.stringify(h.slice(0,5));
+  renderHist();
+}
+
+function renderHist(){
+  historyList.innerHTML='';
+  (JSON.parse(localStorage.hist||'[]')).forEach(i=>{
+    let d=document.createElement('img');
+    d.src=i.data;
+    d.title="Click to View";
+    d.onclick=()=>{textEl.value=i.txt;genQR(i.txt);};
+    historyList.appendChild(d);
+  });
+}
+
+document.getElementById('generateBtn').onclick=()=>{
+  const txt=textEl.value.trim();
+  if(!txt){alert('Enter text!');return;}
+  latestText=txt;
+  genQR(txt);
+};
+
+downloadBtn.onclick=()=>{
+  let a=document.createElement('a');
+  a.href=latestCanvas.toDataURL();
+  a.download='qr.png';
+  a.click();
+};
+
+saveHistoryBtn.onclick=()=>{
+  if(latestCanvas)addHist(latestText,latestCanvas.toDataURL());
+  saveHistoryBtn.disabled=true;
+};
+
+document.getElementById('clearBtn').onclick=()=>{
+  textEl.value='';
+  qrWrap.innerHTML='';
+  downloadBtn.disabled=true;
+  saveHistoryBtn.disabled=true;
+};
+
+document.getElementById('clearHistoryBtn').onclick=()=>{
+  localStorage.removeItem('hist');
+  renderHist();
+};
+
+themeToggle.onclick=()=>{
+  document.body.classList.toggle('dark');
+  themeToggle.textContent=document.body.classList.contains('dark')?'☀':'🌙';
+};
+
+renderHist();
+</script>
+</body>
+</html>
